@@ -1,4 +1,5 @@
 #!/bin/sh
+# vim: tabstop=4 shiftwidth=4 expandtab colorcolumn=80 foldmethod=marker :
 
 HP_guess()
 {
@@ -7,8 +8,15 @@ HP_guess()
 
 HP_session_open()
 {
-    session="$($curl --digest -v -u "$opt_user:$opt_passwd" http://$hostip/ 2>&1 | egrep '(Authorization:|Unauthorized\. Please Log In)' | sed 's,^> ,,')"
-    ! echo $session | fgrep -q 'Unauthorized' || session=
+    session="$(
+        $curl \
+            --digest \
+            -v \
+            -u "$opt_user:$opt_passwd" \
+            http://$hostip/ 2>&1 | \
+        $egrep '(Authorization:|Unauthorized\. Please Log In)' | \
+        $sed 's,^> ,,')"
+    ! echo $session | $fgrep -q 'Unauthorized' || session=
 }
 
 HP_session_close()
@@ -19,14 +27,19 @@ HP_session_close()
 
 HP_mc_info()
 {
-    eval `$curl -H "$session" http://$hostip/ |
-        sed 's,<TR>,\n,g; s,</\?TD>, ,g; s,[ ]*</TR>,,g' | awk '
-/IPMI Version/ { print "ipmiver=" $3 ";" }
-/Firmware Version/ { print "fwver=" $3 ";" }
-/Hardware Version/ { print "hwver=" $3 ";" }
-/Description/ { print "desc=\"" substr($0, index($0,$2)) "\";" }
-/System GUID/ { print "guid=\"" $3 "\";" }
-'`
+    eval $(
+        $curl \
+            -H "$session" \
+            http://$hostip/ | \
+        $sed \
+            's,<TR>,\n,g; s,</\?TD>, ,g; s,[ ]*</TR>,,g' | \
+        $awk '
+/IPMI Version/ { print "local ipmiver=" $3 ";" }
+/Firmware Version/ { print "local fwver=" $3 ";" }
+/Hardware Version/ { print "local hwver=" $3 ";" }
+/Description/ { print "local desc=\"" substr($0, index($0,$2)) "\";" }
+/System GUID/ { print "local guid=\"" $3 "\";" }
+' )
     cat <<EOF
 Device ID                 : 18
 Device Revision           : $hwver
@@ -42,17 +55,26 @@ EOF
 
 HP_mc_reset_cold()
 {
-    error "Not implemented"
+    ipmitool -U $opt_user -P $opt_passwd -I lanplus -H $hostip_nb -C 3 bmc reset cold
 }
 
 HP_kvm()
 {
-    $curl -H "$session" http://$hostip/kvms.html | fgrep 'APPLET CODE' |
-              sed -e 's,<PARAM,\n<PARAM,g' \
-                  -e 's,M2\.JAR,M2.jar,' \
-                  -e 's,<BR>.*,\n</APPLET>,' |
-              sed -ne 's,<PARAM NAME="\([^"]\+\)" VALUE="\([^"]\+\)"[ ]*>,"\1=\2",p' |
-                  xargs -r /bin/echo -e  "#!/bin/sh -e\n"java -jar $java_path/HP/M2.JAR com.serverengines.mahogany.MahoganyViewer.class >> $1
+    $curl \
+        -H "$session" \
+        http://$hostip/kvms.html | \
+    $fgrep 'APPLET CODE' | \
+    $sed \
+        -e 's,<PARAM,\n<PARAM,g' \
+        -e 's,M2\.JAR,M2.jar,' \
+        -e 's,<BR>.*,\n</APPLET>,' | \
+    $sed -n \
+        -e 's,<PARAM NAME="\([^"]\+\)" VALUE="\([^"]\+\)"[ ]*>,"\1=\2",p' | \
+    $xargs \
+        -r \
+        $echo \
+            -e \
+            "#!/bin/sh -e\n\njava -jar $java_path/HP/M2.JAR com.serverengines.mahogany.MahoganyViewer.class" >> $1
 }
 
 HP_redirect()
