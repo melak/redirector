@@ -219,8 +219,8 @@ grant {
 EOF
         appletviewer -J-Djava.security.policy=$jnlp.policy "$jnlp"
         ;;
-    application/x-java-jnlp*|application/xml|text/plain)
-        javaws -Xnosplash -wait "$jnlp"
+    application/x-java-jnlp*|application/xml|text/plain|text/xml)
+        javaws "$jnlp"
         ;;
     text/x-shellscript)
         sh -e "$jnlp"
